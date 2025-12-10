@@ -1,0 +1,161 @@
+name: Init Django Project
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: 'Project Name (will be used as new repository name)'
+        required: true
+        type: string
+
+      python_version:
+        description: 'Python Version'
+        required: true
+        type: choice
+        options:
+          - '3.10'
+          - '3.11'
+          - '3.12'
+        default: '3.11'
+
+      django_version:
+        description: 'Django Version'
+        required: true
+        type: choice
+        options:
+          - '4.2'
+          - '5.0'
+          - '5.1'
+        default: '5.0'
+
+      repo_visibility:
+        description: 'Repository Visibility'
+        required: true
+        type: choice
+        options:
+          - 'public'
+          - 'private'
+        default: 'public'
+
+jobs:
+  create-django:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate project name
+        run: |
+          if [[ ! "${{ inputs.project_name }}" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+            echo "::error::Invalid project name. Must start with a letter and contain only letters, numbers, hyphens, and underscores."
+            exit 1
+          fi
+
+      - name: Set up Python ${{ inputs.python_version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Install Django
+        run: |
+          pip install --upgrade pip
+          pip install Django~=${{ inputs.django_version }}.0
+
+      - name: Create Django project
+        run: |
+          django-admin startproject ${{ inputs.project_name }}
+          cd ${{ inputs.project_name }}
+          
+          cat > requirements.txt << 'EOF'
+          Django~=${{ inputs.django_version }}.0
+          python-dotenv>=1.0.0
+          EOF
+          
+          cat > .gitignore << 'EOF'
+          # Python
+          __pycache__/
+          *.py[cod]
+          *$py.class
+          *.so
+          .Python
+          build/
+          dist/
+          *.egg-info/
+          .installed.cfg
+          *.egg
+          
+          # Virtual Environment
+          venv/
+          .venv/
+          ENV/
+          
+          # Django
+          *.log
+          db.sqlite3
+          media/
+          staticfiles/
+          
+          # Environment
+          .env
+          .env.local
+          
+          # IDE
+          .idea/
+          .vscode/
+          *.swp
+          *.swo
+          
+          # OS
+          .DS_Store
+          Thumbs.db
+          EOF
+          
+          cat > .env.example << 'EOF'
+          DEBUG=True
+          SECRET_KEY=your-secret-key-here
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          EOF
+          
+          cat > README.md << 'EOF'
+          # ${{ inputs.project_name }}
+          
+          A Django project.
+          
+          ## Tech Stack
+          
+          - Python: ${{ inputs.python_version }}
+          - Django: ${{ inputs.django_version }}
+          
+          ## Quick Start
+          
+          ```bash
+          # Create virtual environment
+          python -m venv venv
+          source venv/bin/activate  # On Windows: venv\Scripts\activate
+          
+          # Install dependencies
+          pip install -r requirements.txt
+          
+          # Setup environment
+          cp .env.example .env
+          
+          # Run migrations
+          python manage.py migrate
+          
+          # Create superuser (optional)
+          python manage.py createsuperuser
+          
+          # Run development server
+          python manage.py runserver
+          ```
+          EOF
+
+      - name: Create repo and push
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          cd ${{ inputs.project_name }}
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git init
+          git add .
+          git commit -m "Initial Django ${{ inputs.django_version }} project"
+          gh repo create ${{ inputs.project_name }} --${{ inputs.repo_visibility }} --source . --push
+          echo "✅ Done: https://github.com/${{ github.repository_owner }}/${{ inputs.project_name }}"

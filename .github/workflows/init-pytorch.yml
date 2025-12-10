@@ -1,0 +1,577 @@
+name: Init PyTorch Project
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: 'Project Name (will be used as new repository name)'
+        required: true
+        type: string
+
+      python_version:
+        description: 'Python Version'
+        required: true
+        type: choice
+        options:
+          - '3.10'
+          - '3.11'
+          - '3.12'
+        default: '3.11'
+
+      pytorch_version:
+        description: 'PyTorch Version'
+        required: true
+        type: choice
+        options:
+          - '2.1'
+          - '2.2'
+          - '2.3'
+          - '2.4'
+          - '2.5'
+        default: '2.5'
+
+      repo_visibility:
+        description: 'Repository Visibility'
+        required: true
+        type: choice
+        options:
+          - 'public'
+          - 'private'
+        default: 'public'
+
+jobs:
+  create-pytorch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate project name
+        run: |
+          if [[ ! "${{ inputs.project_name }}" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+            echo "::error::Invalid project name. Must start with a letter and contain only letters, numbers, hyphens, and underscores."
+            exit 1
+          fi
+
+      - name: Set up Python ${{ inputs.python_version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - name: Create PyTorch project
+        run: |
+          mkdir ${{ inputs.project_name }}
+          cd ${{ inputs.project_name }}
+          
+          mkdir -p src/models src/data src/utils notebooks experiments data/raw data/processed checkpoints
+          
+          cat > requirements.txt << 'EOF'
+          torch~=${{ inputs.pytorch_version }}
+          torchvision
+          numpy>=1.24.0
+          pandas>=2.0.0
+          scikit-learn>=1.3.0
+          matplotlib>=3.7.0
+          seaborn>=0.12.0
+          tqdm>=4.65.0
+          pyyaml>=6.0
+          tensorboard>=2.14.0
+          python-dotenv>=1.0.0
+          EOF
+          
+          cat > requirements-dev.txt << 'EOF'
+          pytest>=8.0.0
+          ruff>=0.3.0
+          jupyter>=1.0.0
+          ipykernel>=6.25.0
+          EOF
+          
+          cat > src/__init__.py << 'EOF'
+          EOF
+          
+          cat > src/models/__init__.py << 'EOF'
+          EOF
+          
+          cat > src/models/base.py << 'EOF'
+          import torch
+          import torch.nn as nn
+          
+          
+          class BaseModel(nn.Module):
+              """Base model class with common utilities."""
+              
+              def __init__(self):
+                  super().__init__()
+              
+              def count_parameters(self) -> int:
+                  """Count trainable parameters."""
+                  return sum(p.numel() for p in self.parameters() if p.requires_grad)
+              
+              def save(self, path: str) -> None:
+                  """Save model checkpoint."""
+                  torch.save({'model_state_dict': self.state_dict()}, path)
+              
+              def load(self, path: str, device: str = 'cpu') -> None:
+                  """Load model checkpoint."""
+                  checkpoint = torch.load(path, map_location=device)
+                  self.load_state_dict(checkpoint['model_state_dict'])
+          
+          
+          class SimpleMLP(BaseModel):
+              """Simple MLP example model."""
+              
+              def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
+                  super().__init__()
+                  self.layers = nn.Sequential(
+                      nn.Linear(input_dim, hidden_dim),
+                      nn.ReLU(),
+                      nn.Dropout(0.2),
+                      nn.Linear(hidden_dim, hidden_dim),
+                      nn.ReLU(),
+                      nn.Dropout(0.2),
+                      nn.Linear(hidden_dim, output_dim),
+                  )
+              
+              def forward(self, x: torch.Tensor) -> torch.Tensor:
+                  return self.layers(x)
+          EOF
+          
+          cat > src/data/__init__.py << 'EOF'
+          EOF
+          
+          cat > src/data/dataset.py << 'EOF'
+          import torch
+          from torch.utils.data import Dataset, DataLoader
+          from typing import Tuple, Optional
+          import numpy as np
+          
+          
+          class BaseDataset(Dataset):
+              """Base dataset class."""
+              
+              def __init__(self, X: np.ndarray, y: np.ndarray):
+                  self.X = torch.FloatTensor(X)
+                  self.y = torch.LongTensor(y)
+              
+              def __len__(self) -> int:
+                  return len(self.X)
+              
+              def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+                  return self.X[idx], self.y[idx]
+          
+          
+          def create_dataloaders(
+              train_X: np.ndarray,
+              train_y: np.ndarray,
+              val_X: Optional[np.ndarray] = None,
+              val_y: Optional[np.ndarray] = None,
+              batch_size: int = 32,
+              num_workers: int = 0,
+          ) -> Tuple[DataLoader, Optional[DataLoader]]:
+              """Create train and validation dataloaders."""
+              train_dataset = BaseDataset(train_X, train_y)
+              train_loader = DataLoader(
+                  train_dataset,
+                  batch_size=batch_size,
+                  shuffle=True,
+                  num_workers=num_workers,
+              )
+              
+              val_loader = None
+              if val_X is not None and val_y is not None:
+                  val_dataset = BaseDataset(val_X, val_y)
+                  val_loader = DataLoader(
+                      val_dataset,
+                      batch_size=batch_size,
+                      shuffle=False,
+                      num_workers=num_workers,
+                  )
+              
+              return train_loader, val_loader
+          EOF
+          
+          cat > src/utils/__init__.py << 'EOF'
+          EOF
+          
+          cat > src/utils/trainer.py << 'EOF'
+          import torch
+          import torch.nn as nn
+          from torch.utils.data import DataLoader
+          from torch.utils.tensorboard import SummaryWriter
+          from typing import Optional, Dict
+          from tqdm import tqdm
+          import os
+          
+          
+          class Trainer:
+              """Model trainer with logging and checkpointing."""
+              
+              def __init__(
+                  self,
+                  model: nn.Module,
+                  optimizer: torch.optim.Optimizer,
+                  criterion: nn.Module,
+                  device: str = 'cpu',
+                  checkpoint_dir: str = 'checkpoints',
+                  log_dir: str = 'experiments/runs',
+              ):
+                  self.model = model.to(device)
+                  self.optimizer = optimizer
+                  self.criterion = criterion
+                  self.device = device
+                  self.checkpoint_dir = checkpoint_dir
+                  self.writer = SummaryWriter(log_dir)
+                  os.makedirs(checkpoint_dir, exist_ok=True)
+              
+              def train_epoch(self, train_loader: DataLoader) -> float:
+                  """Train for one epoch."""
+                  self.model.train()
+                  total_loss = 0.0
+                  
+                  for batch_X, batch_y in tqdm(train_loader, desc="Training"):
+                      batch_X = batch_X.to(self.device)
+                      batch_y = batch_y.to(self.device)
+                      
+                      self.optimizer.zero_grad()
+                      outputs = self.model(batch_X)
+                      loss = self.criterion(outputs, batch_y)
+                      loss.backward()
+                      self.optimizer.step()
+                      
+                      total_loss += loss.item()
+                  
+                  return total_loss / len(train_loader)
+              
+              @torch.no_grad()
+              def evaluate(self, val_loader: DataLoader) -> Dict[str, float]:
+                  """Evaluate model."""
+                  self.model.eval()
+                  total_loss = 0.0
+                  correct = 0
+                  total = 0
+                  
+                  for batch_X, batch_y in val_loader:
+                      batch_X = batch_X.to(self.device)
+                      batch_y = batch_y.to(self.device)
+                      
+                      outputs = self.model(batch_X)
+                      loss = self.criterion(outputs, batch_y)
+                      total_loss += loss.item()
+                      
+                      _, predicted = outputs.max(1)
+                      total += batch_y.size(0)
+                      correct += predicted.eq(batch_y).sum().item()
+                  
+                  return {
+                      'loss': total_loss / len(val_loader),
+                      'accuracy': correct / total,
+                  }
+              
+              def fit(
+                  self,
+                  train_loader: DataLoader,
+                  val_loader: Optional[DataLoader] = None,
+                  epochs: int = 10,
+              ) -> None:
+                  """Full training loop."""
+                  best_val_loss = float('inf')
+                  
+                  for epoch in range(epochs):
+                      print(f"\nEpoch {epoch + 1}/{epochs}")
+                      
+                      train_loss = self.train_epoch(train_loader)
+                      self.writer.add_scalar('Loss/train', train_loss, epoch)
+                      print(f"Train Loss: {train_loss:.4f}")
+                      
+                      if val_loader:
+                          metrics = self.evaluate(val_loader)
+                          self.writer.add_scalar('Loss/val', metrics['loss'], epoch)
+                          self.writer.add_scalar('Accuracy/val', metrics['accuracy'], epoch)
+                          print(f"Val Loss: {metrics['loss']:.4f}, Val Acc: {metrics['accuracy']:.4f}")
+                          
+                          if metrics['loss'] < best_val_loss:
+                              best_val_loss = metrics['loss']
+                              self.save_checkpoint('best_model.pt')
+                      
+                      self.save_checkpoint(f'epoch_{epoch + 1}.pt')
+                  
+                  self.writer.close()
+              
+              def save_checkpoint(self, filename: str) -> None:
+                  """Save checkpoint."""
+                  path = os.path.join(self.checkpoint_dir, filename)
+                  torch.save({
+                      'model_state_dict': self.model.state_dict(),
+                      'optimizer_state_dict': self.optimizer.state_dict(),
+                  }, path)
+          EOF
+          
+          cat > src/utils/config.py << 'EOF'
+          import yaml
+          from dataclasses import dataclass
+          
+          
+          @dataclass
+          class Config:
+              """Training configuration."""
+              model_name: str = "SimpleMLP"
+              input_dim: int = 784
+              hidden_dim: int = 256
+              output_dim: int = 10
+              batch_size: int = 32
+              learning_rate: float = 1e-3
+              epochs: int = 10
+              device: str = "cpu"
+              seed: int = 42
+              num_workers: int = 0
+              
+              @classmethod
+              def from_yaml(cls, path: str) -> "Config":
+                  with open(path, 'r') as f:
+                      config_dict = yaml.safe_load(f)
+                  return cls(**config_dict)
+              
+              def to_yaml(self, path: str) -> None:
+                  with open(path, 'w') as f:
+                      yaml.dump(self.__dict__, f, default_flow_style=False)
+          EOF
+          
+          cat > train.py << 'EOF'
+          """Main training script."""
+          import argparse
+          import torch
+          import torch.nn as nn
+          from sklearn.datasets import make_classification
+          from sklearn.model_selection import train_test_split
+          
+          from src.models.base import SimpleMLP
+          from src.data.dataset import create_dataloaders
+          from src.utils.trainer import Trainer
+          from src.utils.config import Config
+          
+          
+          def main():
+              parser = argparse.ArgumentParser(description='Train model')
+              parser.add_argument('--config', type=str, default=None, help='Config file path')
+              parser.add_argument('--epochs', type=int, default=10, help='Number of epochs')
+              parser.add_argument('--batch-size', type=int, default=32, help='Batch size')
+              parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
+              args = parser.parse_args()
+              
+              if args.config:
+                  config = Config.from_yaml(args.config)
+              else:
+                  config = Config(
+                      epochs=args.epochs,
+                      batch_size=args.batch_size,
+                      learning_rate=args.lr,
+                  )
+              
+              device = 'cuda' if torch.cuda.is_available() else 'cpu'
+              print(f"Using device: {device}")
+              
+              # Create dummy data for demonstration
+              X, y = make_classification(
+                  n_samples=1000,
+                  n_features=config.input_dim,
+                  n_informative=50,
+                  n_classes=config.output_dim,
+                  random_state=config.seed,
+              )
+              
+              X_train, X_val, y_train, y_val = train_test_split(
+                  X, y, test_size=0.2, random_state=config.seed
+              )
+              
+              train_loader, val_loader = create_dataloaders(
+                  X_train, y_train, X_val, y_val,
+                  batch_size=config.batch_size,
+              )
+              
+              model = SimpleMLP(
+                  input_dim=config.input_dim,
+                  hidden_dim=config.hidden_dim,
+                  output_dim=config.output_dim,
+              )
+              print(f"Model parameters: {model.count_parameters():,}")
+              
+              optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+              criterion = nn.CrossEntropyLoss()
+              
+              trainer = Trainer(
+                  model=model,
+                  optimizer=optimizer,
+                  criterion=criterion,
+                  device=device,
+              )
+              
+              trainer.fit(train_loader, val_loader, epochs=config.epochs)
+              print("\nTraining complete!")
+          
+          
+          if __name__ == '__main__':
+              main()
+          EOF
+          
+          cat > experiments/config.yaml << 'EOF'
+          model_name: SimpleMLP
+          input_dim: 784
+          hidden_dim: 256
+          output_dim: 10
+          batch_size: 32
+          learning_rate: 0.001
+          epochs: 10
+          device: cpu
+          seed: 42
+          num_workers: 0
+          EOF
+          
+          touch data/raw/.gitkeep
+          touch data/processed/.gitkeep
+          touch checkpoints/.gitkeep
+          
+          cat > notebooks/01_exploration.ipynb << 'EOF'
+          {
+           "cells": [
+            {
+             "cell_type": "markdown",
+             "metadata": {},
+             "source": ["# Data Exploration\n", "\n", "This notebook is for exploring and understanding the dataset."]
+            },
+            {
+             "cell_type": "code",
+             "execution_count": null,
+             "metadata": {},
+             "outputs": [],
+             "source": ["import torch\n", "import numpy as np\n", "import pandas as pd\n", "import matplotlib.pyplot as plt\n", "import seaborn as sns\n", "\n", "print(f\"PyTorch version: {torch.__version__}\")\n", "print(f\"CUDA available: {torch.cuda.is_available()}\")"]
+            },
+            {
+             "cell_type": "code",
+             "execution_count": null,
+             "metadata": {},
+             "outputs": [],
+             "source": ["# Add your exploration code here"]
+            }
+           ],
+           "metadata": {
+            "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+            "language_info": {"name": "python", "version": "${{ inputs.python_version }}"}
+           },
+           "nbformat": 4,
+           "nbformat_minor": 4
+          }
+          EOF
+          
+          cat > .gitignore << 'EOF'
+          # Python
+          __pycache__/
+          *.py[cod]
+          *$py.class
+          *.so
+          .Python
+          build/
+          dist/
+          *.egg-info/
+          
+          # Virtual Environment
+          venv/
+          .venv/
+          ENV/
+          
+          # Jupyter
+          .ipynb_checkpoints/
+          
+          # Data
+          data/raw/*
+          data/processed/*
+          !data/raw/.gitkeep
+          !data/processed/.gitkeep
+          
+          # Model checkpoints
+          checkpoints/*
+          !checkpoints/.gitkeep
+          *.pt
+          *.pth
+          *.ckpt
+          
+          # Experiments
+          experiments/runs/
+          
+          # Environment
+          .env
+          .env.local
+          
+          # IDE
+          .idea/
+          .vscode/
+          *.swp
+          *.swo
+          
+          # OS
+          .DS_Store
+          Thumbs.db
+          
+          # Testing
+          .pytest_cache/
+          .coverage
+          EOF
+          
+          cat > README.md << 'EOF'
+          # ${{ inputs.project_name }}
+          
+          A PyTorch machine learning project.
+          
+          ## Tech Stack
+          
+          - Python: ${{ inputs.python_version }}
+          - PyTorch: ${{ inputs.pytorch_version }}
+          
+          ## Quick Start
+          
+          ```bash
+          # Create virtual environment
+          python -m venv venv
+          source venv/bin/activate  # On Windows: venv\Scripts\activate
+          
+          # Install dependencies
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt  # For development
+          
+          # Run training
+          python train.py --epochs 10 --batch-size 32
+          
+          # Or with config file
+          python train.py --config experiments/config.yaml
+          
+          # Monitor with TensorBoard
+          tensorboard --logdir experiments/runs
+          ```
+          
+          ## Project Structure
+          
+          ```
+          ${{ inputs.project_name }}/
+          ├── src/
+          │   ├── models/          # Model definitions
+          │   ├── data/            # Data loading utilities
+          │   └── utils/           # Training utilities
+          ├── notebooks/           # Jupyter notebooks
+          ├── experiments/         # Experiment configs and logs
+          ├── data/
+          │   ├── raw/
+          │   └── processed/
+          ├── checkpoints/         # Model checkpoints
+          ├── train.py
+          └── README.md
+          ```
+          EOF
+
+      - name: Create repo and push
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          cd ${{ inputs.project_name }}
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git init
+          git add .
+          git commit -m "Initial PyTorch ${{ inputs.pytorch_version }} ML project"
+          gh repo create ${{ inputs.project_name }} --${{ inputs.repo_visibility }} --source . --push
+          echo "✅ Done: https://github.com/${{ github.repository_owner }}/${{ inputs.project_name }}"

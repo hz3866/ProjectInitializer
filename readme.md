@@ -1,6 +1,67 @@
 # Project Initializer Workflows
 
+
+
 A collection of GitHub Actions workflows for automatically creating project repositories.
+
+
+```python
+PROJECT_CONFIGS = {
+    "django": {
+        "workflow": "init-django.yml",
+        "required": ["project_name"],
+        "optional": {
+            "python_version": {"options": ["3.10", "3.11", "3.12"], "default": "3.11"},
+            "django_version": {"options": ["4.2", "5.0", "5.1"], "default": "5.0"},
+            "repo_visibility": {"options": ["public", "private"], "default": "public"},
+        },
+    },
+    "fastapi": {
+        "workflow": "init-fastapi.yml",
+        "required": ["project_name"],
+        "optional": {
+            "python_version": {"options": ["3.10", "3.11", "3.12"], "default": "3.11"},
+            "fastapi_version": {"options": ["0.109", "0.110", "0.111", "0.115"], "default": "0.115"},
+            "repo_visibility": {"options": ["public", "private"], "default": "public"},
+        },
+    },
+    "pytorch": {
+        "workflow": "init-pytorch.yml",
+        "required": ["project_name"],
+        "optional": {
+            "python_version": {"options": ["3.10", "3.11", "3.12"], "default": "3.11"},
+            "pytorch_version": {"options": ["2.1", "2.2", "2.3", "2.4", "2.5"], "default": "2.5"},
+            "repo_visibility": {"options": ["public", "private"], "default": "public"},
+        },
+    },
+    "jupyter": {
+        "workflow": "init-jupyter.yml",
+        "required": ["project_name"],
+        "optional": {
+            "python_version": {"options": ["3.10", "3.11", "3.12"], "default": "3.11"},
+            "repo_visibility": {"options": ["public", "private"], "default": "public"},
+        },
+    },
+    "react": {
+        "workflow": "init-react.yml",
+        "required": ["project_name"],
+        "optional": {
+            "node_version": {"options": ["18", "20", "22"], "default": "20"},
+            "react_version": {"options": ["18", "19"], "default": "19"},
+            "repo_visibility": {"options": ["public", "private"], "default": "public"},
+        },
+    },
+    "vue": {
+        "workflow": "init-vue.yml",
+        "required": ["project_name"],
+        "optional": {
+            "node_version": {"options": ["18", "20", "22"], "default": "20"},
+            "vue_version": {"options": ["3.4", "3.5"], "default": "3.5"},
+            "repo_visibility": {"options": ["public", "private"], "default": "public"},
+        },
+    },
+}
+```
 
 ## Prerequisites
 

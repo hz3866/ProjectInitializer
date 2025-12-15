@@ -152,12 +152,19 @@ This project includes an AWS Lambda function for programmatic access to all feat
 
 ## API Endpoint
 
+All requests use **POST** method with JSON body.
+
+**URL:**
 ```
-POST https://{your-api-gateway-url}/prod/project
-Content-Type: application/json
+https://{ask-author-for-url}
 ```
 
-All requests use **POST** method with a JSON body containing a `method` field.
+**Method:** `POST`
+
+**Headers:**
+```
+Content-Type: application/json
+```
 
 ---
 
@@ -165,13 +172,13 @@ All requests use **POST** method with a JSON body containing a `method` field.
 
 Creates a new repository from a template with full CI/CD setup.
 
-### Request Parameters
+### Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `method` | string | ✅ | Must be `"init"` |
 | `project_type` | string | ✅ | Template type (see options below) |
-| `project_name` | string | ✅ | Repository name (letters, numbers, hyphens, underscores) |
+| `project_name` | string | ✅ | Repository name (letters, numbers, underscores) |
 | `python_version` | string | ❌ | Python version (for Python projects) |
 | `django_version` | string | ❌ | Django version (for Django only) |
 | `fastapi_version` | string | ❌ | FastAPI version (for FastAPI only) |
@@ -192,87 +199,243 @@ Creates a new repository from a template with full CI/CD setup.
 | `react` | node: `18`, `20`, `22` / react: `18`, `19` |
 | `vue` | node: `18`, `20`, `22` / vue: `3.4`, `3.5` |
 
-### Example Request - Django Project
+### Example: Create Django Project
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "init",
-    "project_type": "django",
-    "project_name": "my-django-app",
-    "python_version": "3.12",
-    "django_version": "5.1",
-    "repo_visibility": "private"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
 ```
 
-### Example Response - Success
+**Method:** `POST`
 
+**Payload:**
+```json
+{
+  "method": "init",
+  "project_type": "django",
+  "project_name": "my_django_app",
+  "python_version": "3.12",
+  "django_version": "5.1",
+  "repo_visibility": "public"
+}
+```
+
+**Response:**
 ```json
 {
   "success": true,
   "message": "Workflow triggered successfully",
   "project_type": "django",
-  "project_name": "my-django-app",
+  "project_name": "my_django_app",
   "inputs": {
-    "project_name": "my-django-app",
+    "project_name": "my_django_app",
     "python_version": "3.12",
     "django_version": "5.1",
-    "repo_visibility": "private"
+    "repo_visibility": "public"
   },
-  "repository_url": "https://github.com/hz3866/my-django-app"
+  "repository_url": "https://github.com/hz3866/my_django_app"
 }
 ```
 
-### Example Request - FastAPI Project
+### Example: Create FastAPI Project
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "init",
-    "project_type": "fastapi",
-    "project_name": "my-api-service",
-    "python_version": "3.11",
-    "fastapi_version": "0.115"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
 ```
 
-### Example Request - React Project
+**Method:** `POST`
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "init",
-    "project_type": "react",
-    "project_name": "my-react-frontend",
+**Payload:**
+```json
+{
+  "method": "init",
+  "project_type": "fastapi",
+  "project_name": "my_api_service",
+  "python_version": "3.11",
+  "fastapi_version": "0.115"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Workflow triggered successfully",
+  "project_type": "fastapi",
+  "project_name": "my_api_service",
+  "inputs": {
+    "project_name": "my_api_service",
+    "python_version": "3.11",
+    "fastapi_version": "0.115",
+    "repo_visibility": "public"
+  },
+  "repository_url": "https://github.com/hz3866/my_api_service"
+}
+```
+
+### Example: Create React Project
+
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "init",
+  "project_type": "react",
+  "project_name": "my_react_frontend",
+  "node_version": "20",
+  "react_version": "19"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Workflow triggered successfully",
+  "project_type": "react",
+  "project_name": "my_react_frontend",
+  "inputs": {
+    "project_name": "my_react_frontend",
     "node_version": "20",
-    "react_version": "19"
-  }'
+    "react_version": "19",
+    "repo_visibility": "public"
+  },
+  "repository_url": "https://github.com/hz3866/my_react_frontend"
+}
 ```
 
-### Example Request - PyTorch Project
+### Example: Create Vue Project
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "init",
-    "project_type": "pytorch",
-    "project_name": "ml-training-pipeline",
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "init",
+  "project_type": "vue",
+  "project_name": "my_vue_app",
+  "node_version": "20",
+  "vue_version": "3.5"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Workflow triggered successfully",
+  "project_type": "vue",
+  "project_name": "my_vue_app",
+  "inputs": {
+    "project_name": "my_vue_app",
+    "node_version": "20",
+    "vue_version": "3.5",
+    "repo_visibility": "public"
+  },
+  "repository_url": "https://github.com/hz3866/my_vue_app"
+}
+```
+
+### Example: Create PyTorch Project
+
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "init",
+  "project_type": "pytorch",
+  "project_name": "ml_training_pipeline",
+  "python_version": "3.11",
+  "pytorch_version": "2.5"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Workflow triggered successfully",
+  "project_type": "pytorch",
+  "project_name": "ml_training_pipeline",
+  "inputs": {
+    "project_name": "ml_training_pipeline",
     "python_version": "3.11",
-    "pytorch_version": "2.5"
-  }'
+    "pytorch_version": "2.5",
+    "repo_visibility": "public"
+  },
+  "repository_url": "https://github.com/hz3866/ml_training_pipeline"
+}
 ```
 
-### Example Response - Error
+### Example: Create Jupyter Project
 
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "init",
+  "project_type": "jupyter",
+  "project_name": "data_analysis",
+  "python_version": "3.11"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Workflow triggered successfully",
+  "project_type": "jupyter",
+  "project_name": "data_analysis",
+  "inputs": {
+    "project_name": "data_analysis",
+    "python_version": "3.11",
+    "repo_visibility": "public"
+  },
+  "repository_url": "https://github.com/hz3866/data_analysis"
+}
+```
+
+### Error Response
+
+**Payload:**
+```json
+{
+  "method": "init",
+  "project_type": "django",
+  "project_name": "123_invalid"
+}
+```
+
+**Response:**
 ```json
 {
   "error": "Validation error",
-  "message": "Invalid project_name. Must start with a letter and contain only letters, numbers, hyphens, and underscores."
+  "message": "Invalid project_name. Must start with a letter and contain only letters, numbers, and underscores."
 }
 ```
 
@@ -282,7 +445,7 @@ curl -X POST https://{api-url}/prod/project \
 
 Lists all repositories under the GitHub owner (excluding `ProjectInitializer`) with their branches.
 
-### Request Parameters
+### Parameters
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -290,29 +453,34 @@ Lists all repositories under the GitHub owner (excluding `ProjectInitializer`) w
 | `include_branches` | boolean | ❌ | `true` | Whether to fetch branches for each repo |
 | `per_page` | integer | ❌ | `100` | Number of repos to return (max: 100) |
 
-### Example Request
+### Example: List All Repos with Branches
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "search",
-    "include_branches": true
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
 ```
 
-### Example Response
+**Method:** `POST`
 
+**Payload:**
+```json
+{
+  "method": "search",
+  "include_branches": true
+}
+```
+
+**Response:**
 ```json
 {
   "success": true,
   "count": 3,
   "repositories": [
     {
-      "name": "my-django-app",
-      "full_name": "hz3866/my-django-app",
+      "name": "my_django_app",
+      "full_name": "hz3866/my_django_app",
       "description": null,
-      "url": "https://github.com/hz3866/my-django-app",
+      "url": "https://github.com/hz3866/my_django_app",
       "default_branch": "master",
       "private": false,
       "updated_at": "2024-12-15T10:30:00Z",
@@ -325,18 +493,14 @@ curl -X POST https://{api-url}/prod/project \
         {
           "name": "develop",
           "protected": false
-        },
-        {
-          "name": "feature/user-auth",
-          "protected": false
         }
       ]
     },
     {
-      "name": "my-react-frontend",
-      "full_name": "hz3866/my-react-frontend",
+      "name": "my_react_frontend",
+      "full_name": "hz3866/my_react_frontend",
       "description": "React frontend application",
-      "url": "https://github.com/hz3866/my-react-frontend",
+      "url": "https://github.com/hz3866/my_react_frontend",
       "default_branch": "main",
       "private": true,
       "updated_at": "2024-12-14T15:20:00Z",
@@ -347,40 +511,46 @@ curl -X POST https://{api-url}/prod/project \
           "protected": false
         }
       ]
-    },
-    {
-      "name": "ml-training-pipeline",
-      "full_name": "hz3866/ml-training-pipeline",
-      "description": "PyTorch ML project",
-      "url": "https://github.com/hz3866/ml-training-pipeline",
-      "default_branch": "master",
-      "private": false,
-      "updated_at": "2024-12-13T08:45:00Z",
-      "language": "Python",
-      "branches": [
-        {
-          "name": "master",
-          "protected": false
-        },
-        {
-          "name": "experiment/new-model",
-          "protected": false
-        }
-      ]
     }
   ]
 }
 ```
 
-### Example Request - Without Branches
+### Example: List Repos Without Branches
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "search",
-    "include_branches": false
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "search",
+  "include_branches": false
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "count": 3,
+  "repositories": [
+    {
+      "name": "my_django_app",
+      "full_name": "hz3866/my_django_app",
+      "description": null,
+      "url": "https://github.com/hz3866/my_django_app",
+      "default_branch": "master",
+      "private": false,
+      "updated_at": "2024-12-15T10:30:00Z",
+      "language": "Python"
+    }
+  ]
+}
 ```
 
 ---
@@ -389,76 +559,130 @@ curl -X POST https://{api-url}/prod/project \
 
 Triggers the `docker-build-push.yml` workflow for a specific repository and branch.
 
-### Request Parameters
+### Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `method` | string | ✅ | Must be `"build"` |
-| `repo` | string | ✅ | Repository name (e.g., `"my-django-app"`) |
+| `repo` | string | ✅ | Repository name (e.g., `"my_django_app"`) |
 | `branch` | string | ✅ | Branch name (e.g., `"master"`, `"main"`, `"develop"`) |
 
-### Example Request
+### Example: Build from Master Branch
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "build",
-    "repo": "my-django-app",
-    "branch": "master"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
 ```
 
-### Example Response - Success
+**Method:** `POST`
 
+**Payload:**
+```json
+{
+  "method": "build",
+  "repo": "my_django_app",
+  "branch": "master"
+}
+```
+
+**Response:**
 ```json
 {
   "success": true,
   "message": "Docker build workflow triggered successfully",
-  "repository": "my-django-app",
+  "repository": "my_django_app",
   "branch": "master",
   "workflow": "docker-build-push.yml",
-  "repository_url": "https://github.com/hz3866/my-django-app",
-  "actions_url": "https://github.com/hz3866/my-django-app/actions"
+  "repository_url": "https://github.com/hz3866/my_django_app",
+  "actions_url": "https://github.com/hz3866/my_django_app/actions"
 }
 ```
 
-### Example Request - Build from Feature Branch
+### Example: Build from Feature Branch
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "build",
-    "repo": "my-django-app",
-    "branch": "feature/user-auth"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
 ```
 
-### Example Response - Repository Not Found
+**Method:** `POST`
 
+**Payload:**
+```json
+{
+  "method": "build",
+  "repo": "my_django_app",
+  "branch": "feature/user_auth"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Docker build workflow triggered successfully",
+  "repository": "my_django_app",
+  "branch": "feature/user_auth",
+  "workflow": "docker-build-push.yml",
+  "repository_url": "https://github.com/hz3866/my_django_app",
+  "actions_url": "https://github.com/hz3866/my_django_app/actions"
+}
+```
+
+### Error: Repository Not Found
+
+**Payload:**
+```json
+{
+  "method": "build",
+  "repo": "non_existent_repo",
+  "branch": "master"
+}
+```
+
+**Response:**
 ```json
 {
   "error": "Repository not found",
-  "message": "Repository 'non-existent-repo' does not exist or is not accessible"
+  "message": "Repository 'non_existent_repo' does not exist or is not accessible"
 }
 ```
 
-### Example Response - Branch Not Found
+### Error: Branch Not Found
 
+**Payload:**
+```json
+{
+  "method": "build",
+  "repo": "my_django_app",
+  "branch": "non_existent_branch"
+}
+```
+
+**Response:**
 ```json
 {
   "error": "Branch not found",
-  "message": "Branch 'non-existent-branch' does not exist in repository 'my-django-app'"
+  "message": "Branch 'non_existent_branch' does not exist in repository 'my_django_app'"
 }
 ```
 
-### Example Response - Workflow Not Found
+### Error: Workflow Not Found
 
+**Payload:**
+```json
+{
+  "method": "build",
+  "repo": "old_repo_without_workflow",
+  "branch": "master"
+}
+```
+
+**Response:**
 ```json
 {
   "error": "Workflow not found",
-  "message": "Workflow 'docker-build-push.yml' does not exist in repository 'my-django-app'. Make sure the repository was created with ProjectInitializer."
+  "message": "Workflow 'docker-build-push.yml' does not exist in repository 'old_repo_without_workflow'. Make sure the repository was created with ProjectInitializer."
 }
 ```
 
@@ -468,7 +692,7 @@ curl -X POST https://{api-url}/prod/project \
 
 Gets recent workflow runs for a repository to check build status.
 
-### Request Parameters
+### Parameters
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
@@ -477,23 +701,28 @@ Gets recent workflow runs for a repository to check build status.
 | `workflow` | string | ❌ | `"docker-build-push.yml"` | Workflow filename |
 | `per_page` | integer | ❌ | `5` | Number of runs to return (max: 20) |
 
-### Example Request
+### Example: Get Recent Build Status
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "status",
-    "repo": "my-django-app"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
 ```
 
-### Example Response
+**Method:** `POST`
 
+**Payload:**
+```json
+{
+  "method": "status",
+  "repo": "my_django_app"
+}
+```
+
+**Response:**
 ```json
 {
   "success": true,
-  "repository": "my-django-app",
+  "repository": "my_django_app",
   "workflow": "docker-build-push.yml",
   "total_count": 15,
   "runs": [
@@ -505,7 +734,7 @@ curl -X POST https://{api-url}/prod/project \
       "commit_sha": "abc1234",
       "created_at": "2024-12-15T10:30:00Z",
       "updated_at": "2024-12-15T10:35:00Z",
-      "url": "https://github.com/hz3866/my-django-app/actions/runs/12345678901"
+      "url": "https://github.com/hz3866/my_django_app/actions/runs/12345678901"
     },
     {
       "id": 12345678900,
@@ -515,7 +744,7 @@ curl -X POST https://{api-url}/prod/project \
       "commit_sha": "def5678",
       "created_at": "2024-12-14T15:20:00Z",
       "updated_at": "2024-12-14T15:25:00Z",
-      "url": "https://github.com/hz3866/my-django-app/actions/runs/12345678900"
+      "url": "https://github.com/hz3866/my_django_app/actions/runs/12345678900"
     },
     {
       "id": 12345678899,
@@ -525,9 +754,27 @@ curl -X POST https://{api-url}/prod/project \
       "commit_sha": "ghi9012",
       "created_at": "2024-12-15T11:00:00Z",
       "updated_at": "2024-12-15T11:02:00Z",
-      "url": "https://github.com/hz3866/my-django-app/actions/runs/12345678899"
+      "url": "https://github.com/hz3866/my_django_app/actions/runs/12345678899"
     }
   ]
+}
+```
+
+### Example: Get More Runs
+
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "status",
+  "repo": "my_django_app",
+  "per_page": 20
 }
 ```
 
@@ -548,18 +795,6 @@ curl -X POST https://{api-url}/prod/project \
 | `cancelled` | Workflow was cancelled |
 | `skipped` | Workflow was skipped |
 | `timed_out` | Workflow timed out |
-
-### Example Request - Get More Runs
-
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "status",
-    "repo": "my-django-app",
-    "per_page": 20
-  }'
-```
 
 ---
 
@@ -591,56 +826,78 @@ All error responses follow this format:
 
 ## Complete Workflow Example
 
-Here's a complete example of creating a project and then building it:
-
 ### Step 1: Create a new Django project
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "init",
-    "project_type": "django",
-    "project_name": "my-awesome-app",
-    "python_version": "3.12",
-    "django_version": "5.1",
-    "repo_visibility": "public"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "init",
+  "project_type": "django",
+  "project_name": "my_awesome_app",
+  "python_version": "3.12",
+  "django_version": "5.1",
+  "repo_visibility": "public"
+}
 ```
 
 ### Step 2: Wait for project creation (~30 seconds)
 
 ### Step 3: Verify project appears in search
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "search"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "search"
+}
 ```
 
 ### Step 4: Trigger a Docker build
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "build",
-    "repo": "my-awesome-app",
-    "branch": "master"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "build",
+  "repo": "my_awesome_app",
+  "branch": "master"
+}
 ```
 
 ### Step 5: Check build status
 
-```bash
-curl -X POST https://{api-url}/prod/project \
-  -H "Content-Type: application/json" \
-  -d '{
-    "method": "status",
-    "repo": "my-awesome-app"
-  }'
+**URL:**
+```
+https://{ask-author-for-url}
+```
+
+**Method:** `POST`
+
+**Payload:**
+```json
+{
+  "method": "status",
+  "repo": "my_awesome_app"
+}
 ```
 
 ---

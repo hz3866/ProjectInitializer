@@ -117,7 +117,7 @@ def validate_project_name(name: str) -> bool:
     if not name or len(name) < 1 or len(name) > 100:
         return False
     import re
-    return bool(re.match(r"^[a-zA-Z][a-zA-Z0-9_-]*$", name))
+    return bool(re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", name))
 
 
 def validate_inputs(project_type: str, inputs: dict) -> tuple[bool, str]:
@@ -132,7 +132,7 @@ def validate_inputs(project_type: str, inputs: dict) -> tuple[bool, str]:
             return False, f"Missing required field: {field}"
     
     if not validate_project_name(inputs.get("project_name", "")):
-        return False, "Invalid project_name. Must start with a letter and contain only letters, numbers, hyphens, and underscores."
+        return False, "Invalid project_name. Must start with a letter and contain only letters, numbers, and underscores."
     
     for field, rules in config["optional"].items():
         if field in inputs:

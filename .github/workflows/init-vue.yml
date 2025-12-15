@@ -193,4 +193,14 @@ jobs:
           git add .
           git commit -m "Initial Vue ${{ inputs.vue_version }} + Vite project"
           gh repo create ${{ inputs.project_name }} --${{ inputs.repo_visibility }} --source . --push
-          echo "✅ Done: https://github.com/${{ github.repository_owner }}/${{ inputs.project_name }}"
+          echo "✅ Repo created: https://github.com/${{ github.repository_owner }}/${{ inputs.project_name }}"
+
+      - name: Set secrets for new repo
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          REPO="${{ github.repository_owner }}/${{ inputs.project_name }}"
+          echo "🔐 Setting secrets for ${REPO}..."
+          echo "${{ secrets.DOCKERHUB_USERNAME }}" | gh secret set DOCKERHUB_USERNAME --repo ${REPO}
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | gh secret set DOCKERHUB_TOKEN --repo ${REPO}
+          echo "✅ Secrets configured"

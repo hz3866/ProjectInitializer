@@ -1,4 +1,4 @@
-name: Init React Project
+name: Init Vue Project
 
 on:
   workflow_dispatch:
@@ -18,14 +18,14 @@ on:
           - '22'
         default: '20'
 
-      react_version:
-        description: 'React Version'
+      vue_version:
+        description: 'Vue Version'
         required: true
         type: choice
         options:
-          - '18'
-          - '19'
-        default: '19'
+          - '3.4'
+          - '3.5'
+        default: '3.5'
 
       repo_visibility:
         description: 'Repository Visibility'
@@ -37,7 +37,7 @@ on:
         default: 'public'
 
 jobs:
-  create-react:
+  create-vue:
     runs-on: ubuntu-latest
     steps:
       - name: Validate project name
@@ -47,25 +47,18 @@ jobs:
             exit 1
           fi
 
-      # Checkout this repo to get templates
-      - name: Checkout templates
-        uses: actions/checkout@v4
-        with:
-          path: templates-repo
-
       - name: Set up Node.js ${{ inputs.node_version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}
 
-      - name: Create React project
+      - name: Create Vue project
         run: |
-          npm create vite@latest ${{ inputs.project_name }} -- --template react-ts
+          npm create vite@latest ${{ inputs.project_name }} -- --template vue-ts
           cd ${{ inputs.project_name }}
           
-          # Update React version
-          npm pkg set dependencies.react="^${{ inputs.react_version }}.0.0"
-          npm pkg set dependencies.react-dom="^${{ inputs.react_version }}.0.0"
+          # Update Vue version
+          npm pkg set dependencies.vue="^${{ inputs.vue_version }}.0"
           
           # Install dependencies
           npm install
@@ -73,40 +66,62 @@ jobs:
           # Add commonly used dev dependencies
           npm install -D @types/node
           
-          # Create release.yaml
-          cat > release.yaml << 'EOF'
-          version: "0.1.0"
+          cat > .gitignore << 'EOF'
+          # Dependencies
+          node_modules/
+          
+          # Build
+          dist/
+          dist-ssr/
+          build/
+          
+          # Environment
+          .env
+          .env.local
+          .env.*.local
+          
+          # Logs
+          logs/
+          *.log
+          npm-debug.log*
+          yarn-debug.log*
+          yarn-error.log*
+          pnpm-debug.log*
+          
+          # IDE
+          .idea/
+          .vscode/*
+          !.vscode/extensions.json
+          *.suo
+          *.ntvs*
+          *.njsproj
+          *.sln
+          *.sw?
+          
+          # OS
+          .DS_Store
+          Thumbs.db
+          
+          # Testing
+          coverage/
+          
+          # Misc
+          *.local
           EOF
-
-      - name: Copy template files
-        run: |
-          cd ${{ inputs.project_name }}
           
-          # Copy shared files (CI/CD workflow)
-          mkdir -p .github/workflows
-          cp ../templates-repo/templates/shared/.github/workflows/docker-build-push.yml .github/workflows/
+          cat > .env.example << 'EOF'
+          VITE_API_URL=http://localhost:3000
+          EOF
           
-          # Copy React-specific files
-          cp ../templates-repo/templates/react/.gitignore .
-          cp ../templates-repo/templates/react/.env.example .
-          cp ../templates-repo/templates/react/nginx.conf .
-          
-          # Process Dockerfile template
-          sed -e 's/{{NODE_VERSION}}/${{ inputs.node_version }}/g' \
-              ../templates-repo/templates/react/Dockerfile.template > Dockerfile
-
-      - name: Create README
-        run: |
-          cd ${{ inputs.project_name }}
           cat > README.md << 'EOF'
           # ${{ inputs.project_name }}
           
-          A React project built with Vite.
+          A Vue project built with Vite.
           
           ## Tech Stack
           
           - Node.js: ${{ inputs.node_version }}
-          - React: ${{ inputs.react_version }}
+          - Vue: ${{ inputs.vue_version }}
           - TypeScript
           - Vite
           
@@ -126,31 +141,6 @@ jobs:
           npm run preview
           ```
           
-          ## Docker
-          
-          ```bash
-          # Build image
-          docker build -t ${{ inputs.project_name }}:latest .
-          
-          # Run container
-          docker run -p 80:80 ${{ inputs.project_name }}:latest
-          ```
-          
-          ## CI/CD
-          
-          This project includes a GitHub Action workflow for automatic Docker image builds:
-          - Triggers on push to main/master branch
-          - Can be manually triggered via workflow_dispatch
-          - Pushes images to DockerHub
-          - Runs Trivy security scan
-          
-          ### Required GitHub Secrets
-          
-          | Secret | Description |
-          |--------|-------------|
-          | `DOCKERHUB_USERNAME` | Your DockerHub username |
-          | `DOCKERHUB_TOKEN` | Your DockerHub access token |
-          
           ## Project Structure
           
           ```
@@ -158,15 +148,12 @@ jobs:
           ├── public/
           ├── src/
           │   ├── assets/
-          │   ├── App.tsx
-          │   ├── App.css
-          │   ├── main.tsx
-          │   └── index.css
-          ├── .github/workflows/
-          │   └── docker-build-push.yml
+          │   ├── components/
+          │   │   └── HelloWorld.vue
+          │   ├── App.vue
+          │   ├── main.ts
+          │   └── style.css
           ├── index.html
-          ├── Dockerfile
-          ├── nginx.conf
           ├── package.json
           ├── tsconfig.json
           ├── vite.config.ts
@@ -178,7 +165,7 @@ jobs:
           - `npm run dev` - Start development server
           - `npm run build` - Build for production
           - `npm run preview` - Preview production build
-          - `npm run lint` - Run ESLint
+          - `npm run lint` - Run ESLint (if configured)
           EOF
 
       - name: Create repo and push
@@ -191,6 +178,6 @@ jobs:
           rm -rf .git
           git init
           git add .
-          git commit -m "Initial React ${{ inputs.react_version }} + Vite project"
+          git commit -m "Initial Vue ${{ inputs.vue_version }} + Vite project"
           gh repo create ${{ inputs.project_name }} --${{ inputs.repo_visibility }} --source . --push
           echo "✅ Done: https://github.com/${{ github.repository_owner }}/${{ inputs.project_name }}"

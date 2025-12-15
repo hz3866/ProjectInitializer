@@ -50,12 +50,6 @@ jobs:
             exit 1
           fi
 
-      # Checkout this repo to get templates
-      - name: Checkout templates
-        uses: actions/checkout@v4
-        with:
-          path: templates-repo
-
       - name: Set up Python ${{ inputs.python_version }}
         uses: actions/setup-python@v5
         with:
@@ -66,10 +60,8 @@ jobs:
           mkdir ${{ inputs.project_name }}
           cd ${{ inputs.project_name }}
           
-          # Create directory structure
           mkdir -p src/models src/data src/utils notebooks experiments data/raw data/processed checkpoints
           
-          # Create requirements files
           cat > requirements.txt << 'EOF'
           torch~=${{ inputs.pytorch_version }}
           torchvision
@@ -91,17 +83,17 @@ jobs:
           ipykernel>=6.25.0
           EOF
           
-          # Create Python source files
-          touch src/__init__.py
-          touch src/models/__init__.py
-          touch src/data/__init__.py
-          touch src/utils/__init__.py
+          cat > src/__init__.py << 'EOF'
+          EOF
           
-          cat > src/models/base.py << 'PYEOF'
+          cat > src/models/__init__.py << 'EOF'
+          EOF
+          
+          cat > src/models/base.py << 'EOF'
           import torch
           import torch.nn as nn
-
-
+          
+          
           class BaseModel(nn.Module):
               """Base model class with common utilities."""
               
@@ -120,8 +112,8 @@ jobs:
                   """Load model checkpoint."""
                   checkpoint = torch.load(path, map_location=device)
                   self.load_state_dict(checkpoint['model_state_dict'])
-
-
+          
+          
           class SimpleMLP(BaseModel):
               """Simple MLP example model."""
               
@@ -139,15 +131,18 @@ jobs:
               
               def forward(self, x: torch.Tensor) -> torch.Tensor:
                   return self.layers(x)
-          PYEOF
+          EOF
           
-          cat > src/data/dataset.py << 'PYEOF'
+          cat > src/data/__init__.py << 'EOF'
+          EOF
+          
+          cat > src/data/dataset.py << 'EOF'
           import torch
           from torch.utils.data import Dataset, DataLoader
           from typing import Tuple, Optional
           import numpy as np
-
-
+          
+          
           class BaseDataset(Dataset):
               """Base dataset class."""
               
@@ -160,8 +155,8 @@ jobs:
               
               def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
                   return self.X[idx], self.y[idx]
-
-
+          
+          
           def create_dataloaders(
               train_X: np.ndarray,
               train_y: np.ndarray,
@@ -190,13 +185,129 @@ jobs:
                   )
               
               return train_loader, val_loader
-          PYEOF
+          EOF
           
-          cat > src/utils/config.py << 'PYEOF'
-          from dataclasses import dataclass
+          cat > src/utils/__init__.py << 'EOF'
+          EOF
+          
+          cat > src/utils/trainer.py << 'EOF'
+          import torch
+          import torch.nn as nn
+          from torch.utils.data import DataLoader
+          from torch.utils.tensorboard import SummaryWriter
+          from typing import Optional, Dict
+          from tqdm import tqdm
+          import os
+          
+          
+          class Trainer:
+              """Model trainer with logging and checkpointing."""
+              
+              def __init__(
+                  self,
+                  model: nn.Module,
+                  optimizer: torch.optim.Optimizer,
+                  criterion: nn.Module,
+                  device: str = 'cpu',
+                  checkpoint_dir: str = 'checkpoints',
+                  log_dir: str = 'experiments/runs',
+              ):
+                  self.model = model.to(device)
+                  self.optimizer = optimizer
+                  self.criterion = criterion
+                  self.device = device
+                  self.checkpoint_dir = checkpoint_dir
+                  self.writer = SummaryWriter(log_dir)
+                  os.makedirs(checkpoint_dir, exist_ok=True)
+              
+              def train_epoch(self, train_loader: DataLoader) -> float:
+                  """Train for one epoch."""
+                  self.model.train()
+                  total_loss = 0.0
+                  
+                  for batch_X, batch_y in tqdm(train_loader, desc="Training"):
+                      batch_X = batch_X.to(self.device)
+                      batch_y = batch_y.to(self.device)
+                      
+                      self.optimizer.zero_grad()
+                      outputs = self.model(batch_X)
+                      loss = self.criterion(outputs, batch_y)
+                      loss.backward()
+                      self.optimizer.step()
+                      
+                      total_loss += loss.item()
+                  
+                  return total_loss / len(train_loader)
+              
+              @torch.no_grad()
+              def evaluate(self, val_loader: DataLoader) -> Dict[str, float]:
+                  """Evaluate model."""
+                  self.model.eval()
+                  total_loss = 0.0
+                  correct = 0
+                  total = 0
+                  
+                  for batch_X, batch_y in val_loader:
+                      batch_X = batch_X.to(self.device)
+                      batch_y = batch_y.to(self.device)
+                      
+                      outputs = self.model(batch_X)
+                      loss = self.criterion(outputs, batch_y)
+                      total_loss += loss.item()
+                      
+                      _, predicted = outputs.max(1)
+                      total += batch_y.size(0)
+                      correct += predicted.eq(batch_y).sum().item()
+                  
+                  return {
+                      'loss': total_loss / len(val_loader),
+                      'accuracy': correct / total,
+                  }
+              
+              def fit(
+                  self,
+                  train_loader: DataLoader,
+                  val_loader: Optional[DataLoader] = None,
+                  epochs: int = 10,
+              ) -> None:
+                  """Full training loop."""
+                  best_val_loss = float('inf')
+                  
+                  for epoch in range(epochs):
+                      print(f"\nEpoch {epoch + 1}/{epochs}")
+                      
+                      train_loss = self.train_epoch(train_loader)
+                      self.writer.add_scalar('Loss/train', train_loss, epoch)
+                      print(f"Train Loss: {train_loss:.4f}")
+                      
+                      if val_loader:
+                          metrics = self.evaluate(val_loader)
+                          self.writer.add_scalar('Loss/val', metrics['loss'], epoch)
+                          self.writer.add_scalar('Accuracy/val', metrics['accuracy'], epoch)
+                          print(f"Val Loss: {metrics['loss']:.4f}, Val Acc: {metrics['accuracy']:.4f}")
+                          
+                          if metrics['loss'] < best_val_loss:
+                              best_val_loss = metrics['loss']
+                              self.save_checkpoint('best_model.pt')
+                      
+                      self.save_checkpoint(f'epoch_{epoch + 1}.pt')
+                  
+                  self.writer.close()
+              
+              def save_checkpoint(self, filename: str) -> None:
+                  """Save checkpoint."""
+                  path = os.path.join(self.checkpoint_dir, filename)
+                  torch.save({
+                      'model_state_dict': self.model.state_dict(),
+                      'optimizer_state_dict': self.optimizer.state_dict(),
+                  }, path)
+          EOF
+          
+          cat > src/utils/config.py << 'EOF'
           import yaml
-
-
+          from dataclasses import dataclass
+          
+          
           @dataclass
           class Config:
               """Training configuration."""
@@ -210,35 +321,32 @@ jobs:
               device: str = "cpu"
               seed: int = 42
               num_workers: int = 0
-              checkpoint_dir: str = "checkpoints"
-              log_dir: str = "experiments/runs"
               
               @classmethod
               def from_yaml(cls, path: str) -> "Config":
-                  """Load config from YAML file."""
                   with open(path, 'r') as f:
-                      data = yaml.safe_load(f)
-                  return cls(**data)
+                      config_dict = yaml.safe_load(f)
+                  return cls(**config_dict)
               
               def to_yaml(self, path: str) -> None:
-                  """Save config to YAML file."""
                   with open(path, 'w') as f:
                       yaml.dump(self.__dict__, f, default_flow_style=False)
-          PYEOF
+          EOF
           
-          cat > train.py << 'PYEOF'
+          cat > train.py << 'EOF'
           """Main training script."""
           import argparse
           import torch
           import torch.nn as nn
           from sklearn.datasets import make_classification
           from sklearn.model_selection import train_test_split
-
+          
           from src.models.base import SimpleMLP
           from src.data.dataset import create_dataloaders
+          from src.utils.trainer import Trainer
           from src.utils.config import Config
-
-
+          
+          
           def main():
               parser = argparse.ArgumentParser(description='Train model')
               parser.add_argument('--config', type=str, default=None, help='Config file path')
@@ -281,34 +389,26 @@ jobs:
                   input_dim=config.input_dim,
                   hidden_dim=config.hidden_dim,
                   output_dim=config.output_dim,
-              ).to(device)
-              
+              )
               print(f"Model parameters: {model.count_parameters():,}")
               
               optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
               criterion = nn.CrossEntropyLoss()
               
-              for epoch in range(config.epochs):
-                  model.train()
-                  total_loss = 0
-                  for batch_X, batch_y in train_loader:
-                      batch_X, batch_y = batch_X.to(device), batch_y.to(device)
-                      optimizer.zero_grad()
-                      outputs = model(batch_X)
-                      loss = criterion(outputs, batch_y)
-                      loss.backward()
-                      optimizer.step()
-                      total_loss += loss.item()
-                  
-                  avg_loss = total_loss / len(train_loader)
-                  print(f"Epoch {epoch+1}/{config.epochs}, Loss: {avg_loss:.4f}")
+              trainer = Trainer(
+                  model=model,
+                  optimizer=optimizer,
+                  criterion=criterion,
+                  device=device,
+              )
               
+              trainer.fit(train_loader, val_loader, epochs=config.epochs)
               print("\nTraining complete!")
-
-
+          
+          
           if __name__ == '__main__':
               main()
-          PYEOF
+          EOF
           
           cat > experiments/config.yaml << 'EOF'
           model_name: SimpleMLP
@@ -323,12 +423,10 @@ jobs:
           num_workers: 0
           EOF
           
-          # Create .gitkeep files
           touch data/raw/.gitkeep
           touch data/processed/.gitkeep
           touch checkpoints/.gitkeep
           
-          # Create notebook
           cat > notebooks/01_exploration.ipynb << 'EOF'
           {
            "cells": [
@@ -361,29 +459,60 @@ jobs:
           }
           EOF
           
-          # Create release.yaml
-          cat > release.yaml << 'EOF'
-          version: "0.1.0"
+          cat > .gitignore << 'EOF'
+          # Python
+          __pycache__/
+          *.py[cod]
+          *$py.class
+          *.so
+          .Python
+          build/
+          dist/
+          *.egg-info/
+          
+          # Virtual Environment
+          venv/
+          .venv/
+          ENV/
+          
+          # Jupyter
+          .ipynb_checkpoints/
+          
+          # Data
+          data/raw/*
+          data/processed/*
+          !data/raw/.gitkeep
+          !data/processed/.gitkeep
+          
+          # Model checkpoints
+          checkpoints/*
+          !checkpoints/.gitkeep
+          *.pt
+          *.pth
+          *.ckpt
+          
+          # Experiments
+          experiments/runs/
+          
+          # Environment
+          .env
+          .env.local
+          
+          # IDE
+          .idea/
+          .vscode/
+          *.swp
+          *.swo
+          
+          # OS
+          .DS_Store
+          Thumbs.db
+          
+          # Testing
+          .pytest_cache/
+          .coverage
           EOF
-
-      - name: Copy template files
-        run: |
-          cd ${{ inputs.project_name }}
           
-          # Copy shared files (CI/CD workflow)
-          mkdir -p .github/workflows
-          cp ../templates-repo/templates/shared/.github/workflows/docker-build-push.yml .github/workflows/
-          
-          # Copy PyTorch-specific files
-          cp ../templates-repo/templates/pytorch/.gitignore .
-          
-          # Process Dockerfile template
-          sed -e 's/{{PYTHON_VERSION}}/${{ inputs.python_version }}/g' \
-              ../templates-repo/templates/pytorch/Dockerfile.template > Dockerfile
-
-      - name: Create README
-        run: |
-          cd ${{ inputs.project_name }}
           cat > README.md << 'EOF'
           # ${{ inputs.project_name }}
           
@@ -415,34 +544,6 @@ jobs:
           tensorboard --logdir experiments/runs
           ```
           
-          ## Docker
-          
-          ```bash
-          # Build image
-          docker build -t ${{ inputs.project_name }}:latest .
-          
-          # Run training in container
-          docker run ${{ inputs.project_name }}:latest
-          
-          # Run with GPU support
-          docker run --gpus all ${{ inputs.project_name }}:latest
-          ```
-          
-          ## CI/CD
-          
-          This project includes a GitHub Action workflow for automatic Docker image builds:
-          - Triggers on push to main/master branch
-          - Can be manually triggered via workflow_dispatch
-          - Pushes images to DockerHub
-          - Runs Trivy security scan
-          
-          ### Required GitHub Secrets
-          
-          | Secret | Description |
-          |--------|-------------|
-          | `DOCKERHUB_USERNAME` | Your DockerHub username |
-          | `DOCKERHUB_TOKEN` | Your DockerHub access token |
-          
           ## Project Structure
           
           ```
@@ -457,9 +558,6 @@ jobs:
           │   ├── raw/
           │   └── processed/
           ├── checkpoints/         # Model checkpoints
-          ├── .github/workflows/
-          │   └── docker-build-push.yml
-          ├── Dockerfile
           ├── train.py
           └── README.md
           ```

@@ -38,12 +38,6 @@ jobs:
             exit 1
           fi
 
-      # Checkout this repo to get templates
-      - name: Checkout templates
-        uses: actions/checkout@v4
-        with:
-          path: templates-repo
-
       - name: Set up Python ${{ inputs.python_version }}
         uses: actions/setup-python@v5
         with:
@@ -54,10 +48,8 @@ jobs:
           mkdir ${{ inputs.project_name }}
           cd ${{ inputs.project_name }}
           
-          # Create directory structure
           mkdir -p notebooks data/raw data/processed reports src
           
-          # Create requirements files
           cat > requirements.txt << 'EOF'
           jupyter>=1.0.0
           jupyterlab>=4.0.0
@@ -78,30 +70,30 @@ jobs:
           nbstripout>=0.6.0
           EOF
           
-          # Create source files
-          touch src/__init__.py
+          cat > src/__init__.py << 'EOF'
+          EOF
           
-          cat > src/utils.py << 'PYEOF'
+          cat > src/utils.py << 'EOF'
           """Common utilities for notebooks."""
           import pandas as pd
           import matplotlib.pyplot as plt
           import seaborn as sns
           from pathlib import Path
-
+          
           PROJECT_ROOT = Path(__file__).parent.parent
           DATA_RAW = PROJECT_ROOT / "data" / "raw"
           DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
           REPORTS = PROJECT_ROOT / "reports"
-
-
+          
+          
           def setup_plotting():
               """Setup matplotlib and seaborn defaults."""
               plt.style.use('seaborn-v0_8-whitegrid')
               sns.set_palette("husl")
               plt.rcParams['figure.figsize'] = (10, 6)
               plt.rcParams['figure.dpi'] = 100
-
-
+          
+          
           def load_data(filename: str, raw: bool = True) -> pd.DataFrame:
               """Load data from data directory."""
               data_dir = DATA_RAW if raw else DATA_PROCESSED
@@ -115,8 +107,8 @@ jobs:
                   return pd.read_parquet(filepath)
               else:
                   raise ValueError(f"Unsupported file format: {filepath.suffix}")
-
-
+          
+          
           def save_data(df: pd.DataFrame, filename: str, processed: bool = True) -> None:
               """Save data to data directory."""
               data_dir = DATA_PROCESSED if processed else DATA_RAW
@@ -130,14 +122,12 @@ jobs:
                   df.to_parquet(filepath, index=False)
               else:
                   raise ValueError(f"Unsupported file format: {filepath.suffix}")
-          PYEOF
+          EOF
           
-          # Create .gitkeep files
           touch data/raw/.gitkeep
           touch data/processed/.gitkeep
           touch reports/.gitkeep
           
-          # Create notebooks
           cat > notebooks/01_data_exploration.ipynb << 'EOF'
           {
            "cells": [
@@ -309,29 +299,50 @@ jobs:
           }
           EOF
           
-          # Create release.yaml
-          cat > release.yaml << 'EOF'
-          version: "0.1.0"
+          cat > .gitignore << 'EOF'
+          # Python
+          __pycache__/
+          *.py[cod]
+          *$py.class
+          *.so
+          .Python
+          build/
+          dist/
+          *.egg-info/
+          
+          # Virtual Environment
+          venv/
+          .venv/
+          ENV/
+          
+          # Jupyter
+          .ipynb_checkpoints/
+          
+          # Data
+          data/raw/*
+          data/processed/*
+          !data/raw/.gitkeep
+          !data/processed/.gitkeep
+          
+          # Reports
+          reports/*
+          !reports/.gitkeep
+          
+          # Environment
+          .env
+          .env.local
+          
+          # IDE
+          .idea/
+          .vscode/
+          *.swp
+          *.swo
+          
+          # OS
+          .DS_Store
+          Thumbs.db
           EOF
-
-      - name: Copy template files
-        run: |
-          cd ${{ inputs.project_name }}
           
-          # Copy shared files (CI/CD workflow)
-          mkdir -p .github/workflows
-          cp ../templates-repo/templates/shared/.github/workflows/docker-build-push.yml .github/workflows/
-          
-          # Copy Jupyter-specific files
-          cp ../templates-repo/templates/jupyter/.gitignore .
-          
-          # Process Dockerfile template
-          sed -e 's/{{PYTHON_VERSION}}/${{ inputs.python_version }}/g' \
-              ../templates-repo/templates/jupyter/Dockerfile.template > Dockerfile
-
-      - name: Create README
-        run: |
-          cd ${{ inputs.project_name }}
           cat > README.md << 'EOF'
           # ${{ inputs.project_name }}
           
@@ -357,33 +368,6 @@ jobs:
           jupyter lab
           ```
           
-          ## Docker
-          
-          ```bash
-          # Build image
-          docker build -t ${{ inputs.project_name }}:latest .
-          
-          # Run Jupyter Lab in container
-          docker run -p 8888:8888 -v $(pwd)/data:/app/data ${{ inputs.project_name }}:latest
-          ```
-          
-          Then visit http://localhost:8888
-          
-          ## CI/CD
-          
-          This project includes a GitHub Action workflow for automatic Docker image builds:
-          - Triggers on push to main/master branch
-          - Can be manually triggered via workflow_dispatch
-          - Pushes images to DockerHub
-          - Runs Trivy security scan
-          
-          ### Required GitHub Secrets
-          
-          | Secret | Description |
-          |--------|-------------|
-          | `DOCKERHUB_USERNAME` | Your DockerHub username |
-          | `DOCKERHUB_TOKEN` | Your DockerHub access token |
-          
           ## Project Structure
           
           ```
@@ -398,9 +382,6 @@ jobs:
           │   ├── raw/
           │   └── processed/
           ├── reports/
-          ├── .github/workflows/
-          │   └── docker-build-push.yml
-          ├── Dockerfile
           └── README.md
           ```
           

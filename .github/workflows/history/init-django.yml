@@ -48,12 +48,6 @@ jobs:
             exit 1
           fi
 
-      # Checkout this repo to get templates
-      - name: Checkout templates
-        uses: actions/checkout@v4
-        with:
-          path: templates-repo
-
       - name: Set up Python ${{ inputs.python_version }}
         uses: actions/setup-python@v5
         with:
@@ -69,38 +63,56 @@ jobs:
           django-admin startproject ${{ inputs.project_name }}
           cd ${{ inputs.project_name }}
           
-          # Create requirements.txt
           cat > requirements.txt << 'EOF'
           Django~=${{ inputs.django_version }}.0
           python-dotenv>=1.0.0
-          gunicorn>=21.0.0
           EOF
           
-          # Create release.yaml
-          cat > release.yaml << 'EOF'
-          version: "0.1.0"
+          cat > .gitignore << 'EOF'
+          # Python
+          __pycache__/
+          *.py[cod]
+          *$py.class
+          *.so
+          .Python
+          build/
+          dist/
+          *.egg-info/
+          .installed.cfg
+          *.egg
+          
+          # Virtual Environment
+          venv/
+          .venv/
+          ENV/
+          
+          # Django
+          *.log
+          db.sqlite3
+          media/
+          staticfiles/
+          
+          # Environment
+          .env
+          .env.local
+          
+          # IDE
+          .idea/
+          .vscode/
+          *.swp
+          *.swo
+          
+          # OS
+          .DS_Store
+          Thumbs.db
           EOF
-
-      - name: Copy template files
-        run: |
-          cd ${{ inputs.project_name }}
           
-          # Copy shared files (CI/CD workflow)
-          mkdir -p .github/workflows
-          cp ../templates-repo/templates/shared/.github/workflows/docker-build-push.yml .github/workflows/
+          cat > .env.example << 'EOF'
+          DEBUG=True
+          SECRET_KEY=your-secret-key-here
+          ALLOWED_HOSTS=localhost,127.0.0.1
+          EOF
           
-          # Copy Django-specific files
-          cp ../templates-repo/templates/django/.gitignore .
-          cp ../templates-repo/templates/django/.env.example .
-          
-          # Process Dockerfile template (replace placeholders)
-          sed -e 's/{{PYTHON_VERSION}}/${{ inputs.python_version }}/g' \
-              -e 's/{{PROJECT_NAME}}/${{ inputs.project_name }}/g' \
-              ../templates-repo/templates/django/Dockerfile.template > Dockerfile
-
-      - name: Create README
-        run: |
-          cd ${{ inputs.project_name }}
           cat > README.md << 'EOF'
           # ${{ inputs.project_name }}
           
@@ -133,31 +145,6 @@ jobs:
           # Run development server
           python manage.py runserver
           ```
-          
-          ## Docker
-          
-          ```bash
-          # Build image
-          docker build -t ${{ inputs.project_name }}:latest .
-          
-          # Run container
-          docker run -p 8000:8000 ${{ inputs.project_name }}:latest
-          ```
-          
-          ## CI/CD
-          
-          This project includes a GitHub Action workflow for automatic Docker image builds:
-          - Triggers on push to main/master branch
-          - Can be manually triggered via workflow_dispatch
-          - Pushes images to DockerHub
-          - Runs Trivy security scan
-          
-          ### Required GitHub Secrets
-          
-          | Secret | Description |
-          |--------|-------------|
-          | `DOCKERHUB_USERNAME` | Your DockerHub username |
-          | `DOCKERHUB_TOKEN` | Your DockerHub access token |
           EOF
 
       - name: Create repo and push

@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ProjectInitializer Lambda API
+
+Parameters:
+  GitHubToken:
+    Type: String
+    Description: GitHub Personal Access Token with repo and workflow permissions
+    NoEcho: true
+  
+  GitHubOwner:
+    Type: String
+    Description: GitHub username or organization
+    Default: hz3866
+  
+  GitHubRepo:
+    Type: String
+    Description: ProjectInitializer repository name
+    Default: ProjectInitializer
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.11
+    MemorySize: 128
+
+Resources:
+  ProjectInitializerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ProjectInitializer
+      CodeUri: .
+      Handler: lambda_function.lambda_handler
+      Description: GitHub Actions workflow trigger for project initialization
+      Environment:
+        Variables:
+          GITHUB_TOKEN: !Ref GitHubToken
+          GITHUB_OWNER: !Ref GitHubOwner
+          GITHUB_REPO: !Ref GitHubRepo
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /project
+            Method: POST
+            RestApiId: !Ref ProjectApi
+        OptionsEvent:
+          Type: Api
+          Properties:
+            Path: /project
+            Method: OPTIONS
+            RestApiId: !Ref ProjectApi
+
+  ProjectApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ProjectInitializerAPI
+      StageName: prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Api-Key'"
+        AllowOrigin: "'*'"
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub "https://${ProjectApi}.execute-api.${AWS::Region}.amazonaws.com/prod/project"
+  
+  FunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt ProjectInitializerFunction.Arn

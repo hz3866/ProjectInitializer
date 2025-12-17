@@ -34,19 +34,36 @@ jobs:
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
           echo "📦 VERSION=${VERSION}"
 
-      # Build Docker image
-      - name: Build Docker image
-        run: |
-          docker build \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest .
-
-      # Login to Docker Hub
+      # Login to Docker Hub (before build to avoid rate limits)
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build Docker image with retry
+      - name: Build Docker image
+        run: |
+          MAX_RETRIES=3
+          RETRY_DELAY=30
+          
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "🔄 Attempt $i of $MAX_RETRIES..."
+            if docker build \
+              -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }} \
+              -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest . ; then
+              echo "✅ Build successful!"
+              exit 0
+            fi
+            
+            if [ $i -lt $MAX_RETRIES ]; then
+              echo "⏳ Build failed, waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+            fi
+          done
+          
+          echo "❌ Build failed after $MAX_RETRIES attempts"
+          exit 1
 
       # Security scan with Trivy
       - name: Run Trivy vulnerability scanner

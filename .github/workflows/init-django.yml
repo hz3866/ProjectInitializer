@@ -181,7 +181,7 @@ jobs:
           git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/${{ inputs.project_name }}.git
           git checkout -b poc
           git push -u origin poc
-          git checkout main
+          git checkout master
           echo "✅ Branch 'poc' created"
 
       - name: Set secrets for new repo

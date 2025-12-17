@@ -215,3 +215,27 @@ jobs:
           echo "${{ secrets.DOCKERHUB_USERNAME }}" | gh secret set DOCKERHUB_USERNAME --repo ${REPO}
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | gh secret set DOCKERHUB_TOKEN --repo ${REPO}
           echo "✅ Secrets configured"
+
+      - name: Enable GitHub Actions
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          REPO="${{ github.repository_owner }}/${{ inputs.project_name }}"
+
+          # Enable Actions for the repository
+          gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${REPO}/actions/permissions \
+            -f enabled=true \
+            -f allowed_actions=all
+
+          # Set workflow permissions to read-write (if needed)
+          gh api \
+            --method PUT \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${REPO}/actions/permissions/workflow \
+            -f default_workflow_permissions=write \
+            -f can_approve_pull_request_reviews=true
+
+          echo "✅ GitHub Actions enabled"

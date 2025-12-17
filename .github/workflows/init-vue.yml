@@ -227,7 +227,7 @@ jobs:
             --method PUT \
             -H "Accept: application/vnd.github+json" \
             /repos/${REPO}/actions/permissions \
-            -f enabled=true \
+            -F enabled=true \
             -f allowed_actions=all
 
           # Set workflow permissions to read-write (if needed)
@@ -236,6 +236,6 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             /repos/${REPO}/actions/permissions/workflow \
             -f default_workflow_permissions=write \
-            -f can_approve_pull_request_reviews=true
+            -F can_approve_pull_request_reviews=true
 
           echo "✅ GitHub Actions enabled"

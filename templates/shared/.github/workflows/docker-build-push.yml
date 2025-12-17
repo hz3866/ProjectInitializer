@@ -3,7 +3,7 @@ name: Docker Build & Push
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
+    branches: [ main,master ]
     paths-ignore:
       - '*.md'
       - 'docs/**'

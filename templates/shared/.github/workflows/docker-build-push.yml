@@ -3,10 +3,11 @@ name: Docker Build & Push
 on:
   workflow_dispatch:
   push:
-    branches: [ master ]
+    branches:
+      - master
     paths-ignore:
-      - '*.md'
-      - 'docs/**'
+      - "*.md"
+      - "docs/**"
 
 permissions:
   contents: read
@@ -16,54 +17,49 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-      # Checkout code
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Set version from release.yaml
       - name: Set Version
         id: vars
         run: |
           RELEASE_VERSION=$(yq -r '.version' release.yaml)
           DATE=$(date +'%y%m%d')
-          SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[\/\-]/_/g')
           VERSION="${BRANCH}-${DATE}-${RELEASE_VERSION}-${SHA}"
           
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "$GITHUB_ENV"
           echo "📦 VERSION=${VERSION}"
 
-      # Build Docker image
-      - name: Build Docker image
-        run: |
-          docker build \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }} \
-            -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest .
-
-      # Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Security scan with Trivy
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }}" \
+            -t "${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest" \
+            .
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          image-ref: "${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
 
-      # Push Docker image
       - name: Push Docker image
         run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }}
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }}"
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:latest"
           echo "✅ Pushed: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ env.VERSION }}"

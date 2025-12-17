@@ -483,6 +483,7 @@ jobs:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           cd ${{ inputs.project_name }}
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository_owner }}/${{ inputs.project_name }}.git
           git checkout -b poc
           git push -u origin poc
           git checkout main

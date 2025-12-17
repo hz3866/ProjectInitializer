@@ -173,6 +173,16 @@ jobs:
           gh repo create ${{ inputs.project_name }} --${{ inputs.repo_visibility }} --source . --push
           echo "✅ Repo created: https://github.com/${{ github.repository_owner }}/${{ inputs.project_name }}"
 
+      - name: Create poc branch
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          cd ${{ inputs.project_name }}
+          git checkout -b poc
+          git push -u origin poc
+          git checkout main
+          echo "✅ Branch 'poc' created"
+
       - name: Set secrets for new repo
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
